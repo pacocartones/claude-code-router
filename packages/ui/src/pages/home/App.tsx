@@ -36,6 +36,7 @@ import {
 import { preserveEqualPollingSnapshot, startVisiblePolling } from "./shared/polling";
 import { configsEqual, createConfigSaveQueue, mergeSavedApiKeys, reconcileSavedConfig } from "./shared/config-persistence";
 import { renameProviderReferences } from "./shared/provider-references";
+import { isWebAuthRequiredError } from "./shared/web-auth";
 import {
   AppDialogStack, FeedbackStack, LightToast, MainLayout, OnboardingLayout, PersistenceFeedback, shouldCheckForUpdateOnOpen
 } from "./components/index";
@@ -181,6 +182,7 @@ function canInstallExtensionCandidate(candidate: PluginInstallCandidate): boolea
 
 function App() {
   const [activeView, setActiveView] = useState<ViewId>("onboarding");
+  const [webAuthRequired, setWebAuthRequired] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStepId>(() => getDefaultOnboardingStep(fallbackConfig));
   const [onboardingFinished, setOnboardingFinished] = useState(() => !window.ccr);
   const [onboardingProfileConfirmed, setOnboardingProfileConfirmed] = useState(() => !window.ccr);
@@ -348,8 +350,11 @@ function App() {
       .finally(() => setProviderPresetsLoaded(true));
     void window.ccr.getConfig()
       .then(syncConfigState)
-      .catch(() => {
-        // Fall back to the bundled defaults; the rest of the UI can still render.
+      .catch((error: unknown) => {
+        if (isWebAuthRequiredError(error)) {
+          setWebAuthRequired(true);
+        }
+        // Otherwise fall back to the bundled defaults; the rest of the UI can still render.
       })
       .finally(() => setConfigLoaded(true));
     void window.ccr.getOnboardingFinished()
@@ -358,7 +363,15 @@ function App() {
         setOnboardingProfileConfirmed(finished);
         setActiveView(finished ? "overview" : "onboarding");
       })
-      .catch(() => setActiveView("onboarding"))
+      .catch((error: unknown) => {
+        // A rejected token is not "never configured": opening onboarding here would
+        // let the user save the bundled defaults over the real configuration.
+        if (isWebAuthRequiredError(error)) {
+          setWebAuthRequired(true);
+          return;
+        }
+        setActiveView("onboarding");
+      })
       .finally(() => setOnboardingStatusLoaded(true));
     void window.ccr.getPluginMarketplace().then(setPluginMarketplace).catch(() => setPluginMarketplace([]));
     const unsubscribeOpenSettings = window.ccr.onOpenSettingsRequest(openSettingsDialog);
@@ -3188,6 +3201,21 @@ function App() {
       state={configSaveState}
     />
   );
+
+  if (webAuthRequired) {
+    return (
+      <AppI18nContext.Provider value={copy}>
+        <div className="flex h-full w-full items-center justify-center bg-background p-6 text-foreground">
+          <div className="max-w-md space-y-2 text-center" role="alert">
+            <h1 className="text-lg font-semibold">{t("CCR management token required")}</h1>
+            <p className="text-sm text-muted-foreground">
+              {t("This page was opened without a valid management token, so your configuration was not loaded. Open the full URL printed by ccr ui (it includes ccr_web_token), or run ccr ui again.")}
+            </p>
+          </div>
+        </div>
+      </AppI18nContext.Provider>
+    );
+  }
 
   return (
     <AppI18nContext.Provider value={copy}>

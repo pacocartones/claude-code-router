@@ -1527,6 +1527,8 @@ export const appCopy: Record<ResolvedLanguage, AppCopy> = {
       "Next retry wait": "下次重试等待",
       "Retries": "重试次数",
       "Retry": "继续重试",
+      "CCR management token required": "需要 CCR 管理令牌",
+      "This page was opened without a valid management token, so your configuration was not loaded. Open the full URL printed by ccr ui (it includes ccr_web_token), or run ccr ui again.": "此页面在没有有效管理令牌的情况下打开，因此未加载你的配置。请打开 ccr ui 输出的完整 URL（其中包含 ccr_web_token），或重新运行 ccr ui。",
       "Retry attempts": "重试尝试",
       "Weighted order": "按权重排序",
       "Models, paths, routing, bot, compact, and env": "模型、路径、路由、Bot、压缩和环境变量",

@@ -1,3 +1,5 @@
+import { webAuthRequiredError } from "./pages/home/shared/web-auth";
+
 type CcrApi = NonNullable<Window["ccr"]>;
 
 const rpcEndpoint = "/api/ccr/rpc";
@@ -31,7 +33,7 @@ async function rpc(method: string, args: unknown[] = []): Promise<unknown> {
       : response.status === 404
         ? "CCR management service is unavailable. Make sure the CCR app or ccr ui command is running, then retry."
         : `CCR web API failed with HTTP ${response.status}`;
-    throw new Error(message);
+    throw response.status === 401 ? webAuthRequiredError(message) : new Error(message);
   }
   return payload.value;
 }
